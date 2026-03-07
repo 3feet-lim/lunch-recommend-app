@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 struct OnboardingView: View {
@@ -16,7 +17,10 @@ struct OnboardingView: View {
                 }
 
                 Section("Daily reminder") {
-                    Toggle("Enable daily reminder", isOn: $settingsVM.isNotificationEnabled)
+                    Toggle("Enable daily reminder", isOn: Binding(
+                        get: { settingsVM.isNotificationEnabled },
+                        set: { settingsVM.isNotificationEnabled = $0 }
+                    ))
                     if settingsVM.isNotificationEnabled {
                         DatePicker(
                             "Reminder time",
@@ -44,3 +48,4 @@ struct OnboardingView: View {
         }
     }
 }
+#endif

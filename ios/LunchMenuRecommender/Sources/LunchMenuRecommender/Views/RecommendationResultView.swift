@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 struct RecommendationResultView: View {
@@ -35,3 +36,4 @@ struct RecommendationResultView: View {
         }
     }
 }
+#endif

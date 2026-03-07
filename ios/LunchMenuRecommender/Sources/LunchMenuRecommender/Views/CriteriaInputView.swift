@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 struct CriteriaInputView: View {
@@ -70,3 +71,4 @@ struct CriteriaInputView: View {
         }
     }
 }
+#endif
