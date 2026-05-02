@@ -26,7 +26,7 @@ class KakaoLocalClient:
         base_url: str = DEFAULT_BASE_URL,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.api_key = api_key or os.getenv("KAKAO_REST_API_KEY")
+        self.api_key = api_key if api_key is not None else os.getenv("KAKAO_REST_API_KEY")
         self.radius_meters = radius_meters or int(os.getenv("RESTAURANT_SEARCH_RADIUS_METERS", "150"))
         self.timeout_seconds = timeout_seconds or float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "3"))
         self.base_url = base_url.rstrip("/")

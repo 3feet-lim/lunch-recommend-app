@@ -36,11 +36,11 @@ class NaverGeocodingClient:
         base_url: str = DEFAULT_BASE_URL,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.client_id = client_id or os.getenv("NAVER_GEOCODING_CLIENT_ID") or os.getenv("NAVER_CLIENT_ID")
+        self.client_id = client_id if client_id is not None else (os.getenv("NAVER_GEOCODING_CLIENT_ID") or os.getenv("NAVER_CLIENT_ID"))
         self.client_secret = (
             client_secret
-            or os.getenv("NAVER_GEOCODING_CLIENT_SECRET")
-            or os.getenv("NAVER_CLIENT_SECRET")
+            if client_secret is not None
+            else (os.getenv("NAVER_GEOCODING_CLIENT_SECRET") or os.getenv("NAVER_CLIENT_SECRET"))
         )
         self.timeout_seconds = timeout_seconds or float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "3"))
         self.base_url = base_url.rstrip("/")
