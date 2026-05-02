@@ -67,15 +67,16 @@ def verify_slack_request(
     signature: str | None,
     settings: Settings,
 ) -> None:
-    result = SlackSignatureVerifier(settings.slack_signing_secret).verify(
-        raw_body=raw_body, timestamp=timestamp, signature=signature
-    )
-    if not result.ok:
-        logger.warning("Rejected Slack request: %s", result.reason)
+    try:
+        SlackSignatureVerifier(settings.slack_signing_secret).verify(
+            raw_body=raw_body, timestamp=timestamp, signature=signature
+        )
+    except SlackSignatureError as exc:
+        logger.warning("Rejected Slack request: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid_slack_signature",
-        )
+        ) from exc
 
 
 async def process_lunch_command(command: SlackCommand) -> None:

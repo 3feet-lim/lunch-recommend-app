@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.main import create_app
 from app.routers import slack
 
@@ -42,8 +42,9 @@ def command_body(text: str = "강남역 4명 팀점심") -> bytes:
 def client() -> TestClient:
     get_settings.cache_clear()
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: get_settings().model_copy(
-        update={"slack_signing_secret": SECRET}
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        slack_signing_secret=SECRET,
+        environment="test",
     )
     return TestClient(app)
 
@@ -101,7 +102,10 @@ def test_slack_signature_uses_exact_raw_body():
 def test_lunch_command_ack_is_returned_before_background_work(monkeypatch):
     called = False
 
-    async def fail_if_executed_before_ack(command):
+    async def fail_if_executed_before_ack(
+        command: slack.SlackCommand,
+        settings: Settings,
+    ) -> None:
         nonlocal called
         called = True
 
