@@ -90,13 +90,15 @@ def test_slack_retry_is_acknowledged_without_duplicate_background_work(monkeypat
             "response_url": "https://hooks.slack.test/secret",
         }
     ).encode()
+    first = client.post("/slack/commands/lunch", content=body, headers=signed_headers(body))
     headers = signed_headers(body) | {"X-Slack-Retry-Num": "1"}
 
     response = client.post("/slack/commands/lunch", content=body, headers=headers)
 
+    assert first.status_code == 200
     assert response.status_code == 200
-    assert "처리 중" in response.json()["text"]
-    assert calls == []
+    assert "이미" in response.json()["text"] or "처리 중" in response.json()["text"]
+    assert calls == ["강남역 4명"]
 
 
 def test_interactions_verify_signature(monkeypatch) -> None:

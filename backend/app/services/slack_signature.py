@@ -87,7 +87,10 @@ def verify_slack_signature(
     elif now is None:
         now_func = None
     else:
-        now_func = lambda: float(now)
+        fixed_now = float(now)
+
+        def now_func() -> float:
+            return fixed_now
 
     result = SlackSignatureVerifier(signing_secret, now=now_func).verify(
         raw_body=raw_body,
