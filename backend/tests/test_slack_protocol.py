@@ -12,7 +12,9 @@ from app.routers import slack
 SECRET = "test-secret"
 
 
-def signed_headers(body: bytes, secret: str = SECRET, timestamp: int | None = None) -> dict[str, str]:
+def signed_headers(
+    body: bytes, secret: str = SECRET, timestamp: int | None = None
+) -> dict[str, str]:
     ts = str(timestamp or int(time.time()))
     base = b"v0:" + ts.encode() + b":" + body
     signature = "v0=" + hmac.new(secret.encode(), base, hashlib.sha256).hexdigest()

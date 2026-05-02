@@ -13,7 +13,6 @@ from urllib.parse import urlencode
 
 import pytest
 
-
 pytestmark = pytest.mark.contract
 
 
@@ -29,11 +28,15 @@ def _find_callable(module, *names: str):
         func = getattr(module, name, None)
         if callable(func):
             return func
-    available = [name for name, value in vars(module).items() if callable(value) and not name.startswith("_")]
+    available = [
+        name for name, value in vars(module).items() if callable(value) and not name.startswith("_")
+    ]
     raise AssertionError(f"expected one of {names}; available callables: {available}")
 
 
-def _call_signature_verifier(func, *, secret: str, body: bytes, timestamp: str, signature: str) -> bool:
+def _call_signature_verifier(
+    func, *, secret: str, body: bytes, timestamp: str, signature: str
+) -> bool:
     """Call the verifier using the documented contract or compatible names."""
 
     params = inspect.signature(func).parameters
@@ -65,7 +68,9 @@ def test_slack_signature_accepts_valid_raw_body_and_rejects_tampering(
     module = _import_or_skip("app.services.slack_signature")
     verifier = _find_callable(module, "verify_slack_signature", "is_valid_slack_signature")
 
-    raw_body = urlencode({"team_id": "T1", "channel_id": "C1", "user_id": "U1", "text": "강남역 4명"}).encode()
+    raw_body = urlencode(
+        {"team_id": "T1", "channel_id": "C1", "user_id": "U1", "text": "강남역 4명"}
+    ).encode()
     headers = signed_slack_headers(raw_body)
 
     assert _call_signature_verifier(
@@ -84,7 +89,9 @@ def test_slack_signature_accepts_valid_raw_body_and_rejects_tampering(
     )
 
 
-def test_slack_signature_rejects_stale_timestamp(slack_signing_secret: str, signed_slack_headers) -> None:
+def test_slack_signature_rejects_stale_timestamp(
+    slack_signing_secret: str, signed_slack_headers
+) -> None:
     module = _import_or_skip("app.services.slack_signature")
     verifier = _find_callable(module, "verify_slack_signature", "is_valid_slack_signature")
 
@@ -103,12 +110,24 @@ def test_slack_signature_rejects_stale_timestamp(slack_signing_secret: str, sign
 
 def test_slash_parser_extracts_region_party_size_and_context() -> None:
     module = _import_or_skip("app.services.parser")
-    parser = _find_callable(module, "parse_slash_command_text", "parse_lunch_text", "parse_command_text")
+    parser = _find_callable(
+        module, "parse_slash_command_text", "parse_lunch_text", "parse_command_text"
+    )
 
     parsed = parser("강남역 4명 팀점심")
-    region = getattr(parsed, "region", None) if not isinstance(parsed, dict) else parsed.get("region")
-    party_size = getattr(parsed, "party_size", None) if not isinstance(parsed, dict) else parsed.get("party_size")
-    context = getattr(parsed, "companion_context", None) if not isinstance(parsed, dict) else parsed.get("companion_context")
+    region = (
+        getattr(parsed, "region", None) if not isinstance(parsed, dict) else parsed.get("region")
+    )
+    party_size = (
+        getattr(parsed, "party_size", None)
+        if not isinstance(parsed, dict)
+        else parsed.get("party_size")
+    )
+    context = (
+        getattr(parsed, "companion_context", None)
+        if not isinstance(parsed, dict)
+        else parsed.get("companion_context")
+    )
 
     assert region == "강남역"
     assert party_size == 4

@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = BACKEND_ROOT / "app"
 TEST_ROOT = BACKEND_ROOT / "tests"

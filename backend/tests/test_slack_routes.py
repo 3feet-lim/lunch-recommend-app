@@ -15,8 +15,8 @@ SECRET = "test-secret"
 
 def make_client(monkeypatch) -> TestClient:
     app = create_app()
-    app.dependency_overrides[get_settings] = (
-        lambda: Settings(slack_signing_secret=SECRET, environment="test")
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        slack_signing_secret=SECRET, environment="test"
     )
     return TestClient(app)
 
