@@ -1,39 +1,33 @@
-import os
-from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass(frozen=True)
-class Settings:
+class Settings(BaseSettings):
     """Runtime configuration for the Slack lunch bot backend."""
 
-    slack_signing_secret: str | None = None
-    default_locale: str = "ko-KR"
-    default_timezone: str = "Asia/Seoul"
-    restaurant_search_radius_meters: int = 150
-    conversation_ttl_minutes: int = 30
-    slack_response_timeout_seconds: float = 5.0
-    upstream_timeout_seconds: float = 3.0
-    environment: str = "development"
+    slack_signing_secret: str = Field(default="", alias="SLACK_SIGNING_SECRET")
+    default_locale: str = Field(default="ko-KR", alias="DEFAULT_LOCALE")
+    default_timezone: str = Field(default="Asia/Seoul", alias="DEFAULT_TIMEZONE")
+    restaurant_search_radius_meters: int = Field(
+        default=150, alias="RESTAURANT_SEARCH_RADIUS_METERS"
+    )
+    conversation_ttl_minutes: int = Field(default=30, alias="CONVERSATION_TTL_MINUTES")
+    slack_response_timeout_seconds: float = Field(
+        default=5.0, alias="SLACK_RESPONSE_TIMEOUT_SECONDS"
+    )
+    upstream_timeout_seconds: float = Field(default=3.0, alias="UPSTREAM_TIMEOUT_SECONDS")
+    environment: str = Field(default="development", alias="ENVIRONMENT")
 
-    @classmethod
-    def from_env(cls) -> "Settings":
-        return cls(
-            slack_signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-            default_locale=os.getenv("DEFAULT_LOCALE", "ko-KR"),
-            default_timezone=os.getenv("DEFAULT_TIMEZONE", "Asia/Seoul"),
-            restaurant_search_radius_meters=int(
-                os.getenv("RESTAURANT_SEARCH_RADIUS_METERS", "150")
-            ),
-            conversation_ttl_minutes=int(os.getenv("CONVERSATION_TTL_MINUTES", "30")),
-            slack_response_timeout_seconds=float(
-                os.getenv("SLACK_RESPONSE_TIMEOUT_SECONDS", "5")
-            ),
-            upstream_timeout_seconds=float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "3")),
-            environment=os.getenv("ENVIRONMENT", "development"),
-        )
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parents[2] / ".env",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings.from_env()
+    return Settings()

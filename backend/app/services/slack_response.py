@@ -10,7 +10,7 @@ def command_ack() -> dict[str, Any]:
 
 
 def already_processing_ack() -> dict[str, Any]:
-    return ephemeral_text("이미 같은 점심 추천 요청을 처리 중입니다.")
+    return ephemeral_text("이미 같은 점심 추천 요청을 처리하고 있어요.")
 
 
 def unsupported_interaction_ack() -> dict[str, Any]:
