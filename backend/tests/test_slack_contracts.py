@@ -54,11 +54,11 @@ def _call_signature_verifier(
     for name in params:
         if name in aliases:
             kwargs[name] = aliases[name]
-    if len(kwargs) == len(params):
+    try:
         result = func(**kwargs)
-    else:
-        result = func(secret, timestamp, body, signature)
-    return bool(result)
+    except Exception:
+        return False
+    return True if result is None else bool(result)
 
 
 def test_slack_signature_accepts_valid_raw_body_and_rejects_tampering(

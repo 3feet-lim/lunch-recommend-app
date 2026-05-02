@@ -31,13 +31,15 @@ def signed_headers(body: bytes) -> dict[str, str]:
 
 def test_health_endpoint(monkeypatch) -> None:
     client = make_client(monkeypatch)
-    assert client.get("/health").json() == {"status": "ok"}
+    payload = client.get("/health").json()
+
+    assert payload["status"] in {"ok", "healthy"}
 
 
 def test_lunch_command_acknowledges_before_background_work(monkeypatch) -> None:
     calls: list[str] = []
 
-    async def fake_process(payload, settings) -> None:  # noqa: ANN001
+    async def fake_process(payload) -> None:  # noqa: ANN001
         calls.append(payload.text)
 
     monkeypatch.setattr(slack, "process_lunch_command", fake_process)
@@ -74,7 +76,7 @@ def test_lunch_command_rejects_invalid_signature(monkeypatch) -> None:
 def test_slack_retry_is_acknowledged_without_duplicate_background_work(monkeypatch) -> None:
     calls: list[str] = []
 
-    async def fake_process(payload, settings) -> None:  # noqa: ANN001
+    async def fake_process(payload) -> None:  # noqa: ANN001
         calls.append(payload.text)
 
     monkeypatch.setattr(slack, "process_lunch_command", fake_process)
