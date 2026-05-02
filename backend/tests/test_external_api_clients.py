@@ -4,7 +4,11 @@ import httpx
 import pytest
 
 from app.models.domain import Coordinates, WeatherCategory
-from app.services.external_api_errors import MissingCredentialError, RegionNotFoundError, UpstreamServiceError
+from app.services.external_api_errors import (
+    MissingCredentialError,
+    RegionNotFoundError,
+    UpstreamServiceError,
+)
 from app.services.geocoding_naver import NaverGeocodingClient
 from app.services.restaurant_search_kakao import KakaoLocalClient
 from app.services.weather_openweather import OpenWeatherClient
@@ -46,7 +50,9 @@ async def test_naver_geocoding_no_result_maps_to_region_not_found() -> None:
         return httpx.Response(200, json={"status": "OK", "addresses": []})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
-        client = NaverGeocodingClient(client_id="cid", client_secret="secret", http_client=http_client)
+        client = NaverGeocodingClient(
+            client_id="cid", client_secret="secret", http_client=http_client
+        )
         with pytest.raises(RegionNotFoundError):
             await client.geocode_region("없는장소")
 
@@ -79,7 +85,9 @@ async def test_kakao_restaurant_search_uses_strict_radius_and_fd6_category() -> 
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
         client = KakaoLocalClient(api_key="kakao-key", http_client=http_client)
-        restaurants = await client.search_restaurants(Coordinates(latitude=37.5, longitude=127.0), size=99)
+        restaurants = await client.search_restaurants(
+            Coordinates(latitude=37.5, longitude=127.0), size=99
+        )
 
     assert seen["authorization"] == "KakaoAK kakao-key"
     assert seen["params"] == {
@@ -109,7 +117,10 @@ async def test_openweather_normalizes_rain_and_hides_timeout_as_unavailable() ->
         assert request.url.params["units"] == "metric"
         return httpx.Response(
             200,
-            json={"weather": [{"id": 501, "main": "Rain", "description": "비"}], "main": {"temp": 18.5}},
+            json={
+                "weather": [{"id": 501, "main": "Rain", "description": "비"}],
+                "main": {"temp": 18.5},
+            },
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(rain_handler)) as http_client:

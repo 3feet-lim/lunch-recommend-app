@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 pytestmark = pytest.mark.contract
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = BACKEND_ROOT / "app"
@@ -42,8 +41,22 @@ def test_recommendation_engine_does_not_expand_or_synthesize_results() -> None:
     # This behavioral check is intentionally duck-typed so implementation can use
     # dataclasses, Pydantic models, or dictionaries for restaurants.
     restaurants = [
-        {"id": "r1", "name": "A", "category": "한식", "distance_meters": 20, "address": "a", "place_url": "https://map.example/a"},
-        {"id": "r2", "name": "B", "category": "분식", "distance_meters": 50, "address": "b", "place_url": "https://map.example/b"},
+        {
+            "id": "r1",
+            "name": "A",
+            "category": "한식",
+            "distance_meters": 20,
+            "address": "a",
+            "place_url": "https://map.example/a",
+        },
+        {
+            "id": "r2",
+            "name": "B",
+            "category": "분식",
+            "distance_meters": 50,
+            "address": "b",
+            "place_url": "https://map.example/b",
+        },
     ]
     engine = engine_type()
     recommend = getattr(engine, "recommend", None)
@@ -51,12 +64,23 @@ def test_recommendation_engine_does_not_expand_or_synthesize_results() -> None:
         raise AssertionError("RecommendationEngine.recommend is required")
 
     try:
-        results = recommend(restaurants, weather="rain", weekday="weekday", party_size=4, context="팀점심")
+        results = recommend(
+            restaurants, weather="rain", weekday="weekday", party_size=4, context="팀점심"
+        )
     except TypeError:
-        results = recommend(restaurants=restaurants, weather="rain", weekday="weekday", party_size=4, context="팀점심")
+        results = recommend(
+            restaurants=restaurants,
+            weather="rain",
+            weekday="weekday",
+            party_size=4,
+            context="팀점심",
+        )
 
     assert len(results) <= 2
-    names = [getattr(item, "name", None) if not isinstance(item, dict) else item.get("name") for item in results]
+    names = [
+        getattr(item, "name", None) if not isinstance(item, dict) else item.get("name")
+        for item in results
+    ]
     assert set(names).issubset({"A", "B"})
 
 
@@ -67,11 +91,15 @@ def test_message_formatter_hides_sensitive_values() -> None:
         pytest.skip("MessageFormatter class is not present yet")
 
     formatter = formatter_type()
-    error_func = getattr(formatter, "format_error", None) or getattr(formatter, "error_message", None)
+    error_func = getattr(formatter, "format_error", None) or getattr(
+        formatter, "error_message", None
+    )
     if not callable(error_func):
         raise AssertionError("MessageFormatter must expose an error formatting method")
 
-    message = str(error_func("failed with https://hooks.slack.com/services/T/B/SECRET and xoxb-secret-token"))
+    message = str(
+        error_func("failed with https://hooks.slack.com/services/T/B/SECRET and xoxb-secret-token")
+    )
     assert "hooks.slack.com/services" not in message
     assert "xoxb-" not in message
     assert "Traceback" not in message

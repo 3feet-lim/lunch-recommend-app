@@ -10,7 +10,10 @@ from app.services.slack_signature import (
 
 
 def test_valid_slack_signature_uses_raw_body() -> None:
-    body = b"text=%EA%B0%95%EB%82%A8%EC%97%AD+4%EB%AA%85&response_url=https%3A%2F%2Fhooks.slack.test%2Fsecret"
+    body = (
+        b"text=%EA%B0%95%EB%82%A8%EC%97%AD+4%EB%AA%85"
+        b"&response_url=https%3A%2F%2Fhooks.slack.test%2Fsecret"
+    )
     timestamp = "1000"
     secret = "test-secret"
     signature = build_test_signature(secret, timestamp, body)
@@ -23,7 +26,10 @@ def test_valid_slack_signature_uses_raw_body() -> None:
         now=1000,
     )
 
-    reparsed_body = b"response_url=https%3A%2F%2Fhooks.slack.test%2Fsecret&text=%EA%B0%95%EB%82%A8%EC%97%AD+4%EB%AA%85"
+    reparsed_body = (
+        b"response_url=https%3A%2F%2Fhooks.slack.test%2Fsecret"
+        b"&text=%EA%B0%95%EB%82%A8%EC%97%AD+4%EB%AA%85"
+    )
     with pytest.raises(SlackSignatureError):
         verify_slack_signature(
             signing_secret=secret,
