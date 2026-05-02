@@ -38,7 +38,12 @@ def build_conversation_key(team_id: str, channel_id: str, user_id: str) -> str:
 class SQLiteConversationStateStore:
     """Small synchronous SQLite store with last-write-wins semantics."""
 
-    def __init__(self, db_path: str | Path = "conversation_state.sqlite3", *, ttl_minutes: int = 30) -> None:
+    def __init__(
+        self,
+        db_path: str | Path = "conversation_state.sqlite3",
+        *,
+        ttl_minutes: int = 30,
+    ) -> None:
         self.db_path = str(db_path)
         self.ttl = timedelta(minutes=ttl_minutes)
         self._ensure_schema()
@@ -132,7 +137,9 @@ class SQLiteConversationStateStore:
     def cleanup_expired(self) -> int:
         now = _format_dt(_utcnow())
         with self._connect() as connection:
-            cursor = connection.execute("DELETE FROM conversation_state WHERE expires_at <= ?", (now,))
+            cursor = connection.execute(
+                "DELETE FROM conversation_state WHERE expires_at <= ?", (now,)
+            )
             return cursor.rowcount
 
     def _ensure_schema(self) -> None:

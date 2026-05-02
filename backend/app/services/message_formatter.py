@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any
 
-from app.models.domain import WeatherCategory, WeatherContext
+from app.models.domain import WeatherContext
 from app.services.recommendation_engine import Recommendation
 
 _SECRET_PATTERNS = [
@@ -27,7 +28,7 @@ class MessageFormatter:
 
     def format_recommendations(
         self,
-        recommendations: list[Recommendation] | list[dict[str, Any]],
+        recommendations: Sequence[Recommendation | dict[str, Any]],
         *,
         region: str,
         party_size: int,
@@ -40,7 +41,10 @@ class MessageFormatter:
         header = f"{region} 근처 {party_size}명 점심 추천이에요."
         lines = [header]
         if len(recommendations) < 3:
-            lines.append(f"엄격한 {strict_radius_meters}m 범위에서 {len(recommendations)}곳만 찾았어요.")
+            lines.append(
+                f"엄격한 {strict_radius_meters}m 범위에서 "
+                f"{len(recommendations)}곳만 찾았어요."
+            )
         if weather is not None and not weather.is_available:
             lines.append("날씨 정보는 사용할 수 없어 요일/요청 맥락 중심으로 골랐어요.")
 
@@ -56,7 +60,9 @@ class MessageFormatter:
 
     def format_region_not_found(self, region: str | None = None) -> dict[str, str]:
         target = f" `{region}`" if region else ""
-        return _ephemeral(f"지역{target}을 찾지 못했어요. 역명이나 건물명처럼 더 구체적으로 알려주세요.")
+        return _ephemeral(
+            f"지역{target}을 찾지 못했어요. 역명이나 건물명처럼 더 구체적으로 알려주세요."
+        )
 
     def format_error(self, message: str | Exception | None = None) -> dict[str, str]:
         safe_detail = _sanitize(str(message or ""))
@@ -88,10 +94,7 @@ def _format_recommendation_line(index: int, item: Recommendation | dict[str, Any
 
 def _field(item: Recommendation | dict[str, Any], *names: str) -> str | None:
     for name in names:
-        if isinstance(item, dict):
-            value = item.get(name)
-        else:
-            value = getattr(item, name, None)
+        value = item.get(name) if isinstance(item, dict) else getattr(item, name, None)
         if value not in (None, ""):
             return str(value)
     return None

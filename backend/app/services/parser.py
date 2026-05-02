@@ -87,7 +87,11 @@ def merge_pending_response(
     if pending_question == "party_size":
         return ParsedLunchRequest(
             region=current.region or response.region,
-            party_size=response.party_size or _parse_bare_party_size(response_text) or current.party_size,
+            party_size=(
+                response.party_size
+                or _parse_bare_party_size(response_text)
+                or current.party_size
+            ),
             companion_context=response.companion_context or current.companion_context,
             original_text=response.original_text or current.original_text,
         )

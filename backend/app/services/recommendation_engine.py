@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -26,7 +27,7 @@ class RecommendationEngine:
 
     def recommend(
         self,
-        restaurants: list[RestaurantCandidate] | list[dict[str, Any]],
+        restaurants: Sequence[RestaurantCandidate | dict[str, Any]],
         *,
         weather: WeatherContext | WeatherCategory | str | None = None,
         weekday: str | bool | None = None,
@@ -38,7 +39,9 @@ class RecommendationEngine:
         weather_category = _weather_category(weather)
         is_weekday = _is_weekday(weekday, now)
         scored = [
-            self._score_candidate(candidate, weather_category, is_weekday, party_size, context, index)
+            self._score_candidate(
+                candidate, weather_category, is_weekday, party_size, context, index
+            )
             for index, candidate in enumerate(restaurants)
         ]
         scored.sort(key=lambda item: (-item.score, _distance_sort_value(item), item.name))
@@ -74,10 +77,11 @@ class RecommendationEngine:
                 reasons.append("날씨에 어울리는 따뜻한 메뉴")
             else:
                 reasons.append("날씨를 고려한 가까운 선택")
-        elif weather in {WeatherCategory.HOT, WeatherCategory.CLEAR}:
-            if any(term in category_text for term in ("냉", "면", "카페", "샐러드", "분식")):
-                score += 8.0
-                reasons.append("맑거나 더운 날에 부담 적은 메뉴")
+        elif weather in {WeatherCategory.HOT, WeatherCategory.CLEAR} and any(
+            term in category_text for term in ("냉", "면", "카페", "샐러드", "분식")
+        ):
+            score += 8.0
+            reasons.append("맑거나 더운 날에 부담 적은 메뉴")
 
         if is_weekday:
             score += 4.0
@@ -119,7 +123,9 @@ class RecommendationEngine:
         )
 
 
-def _weather_category(weather: WeatherContext | WeatherCategory | str | None) -> WeatherCategory | None:
+def _weather_category(
+    weather: WeatherContext | WeatherCategory | str | None,
+) -> WeatherCategory | None:
     if isinstance(weather, WeatherContext):
         return weather.category
     if isinstance(weather, WeatherCategory):
