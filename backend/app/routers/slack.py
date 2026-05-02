@@ -4,7 +4,15 @@ from dataclasses import dataclass
 from typing import Annotated
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    status,
+)
 
 from app.config import Settings, get_settings
 from app.services.slack_response import (
@@ -12,7 +20,7 @@ from app.services.slack_response import (
     command_ack,
     unsupported_interaction_ack,
 )
-from app.services.slack_signature import SlackSignatureVerifier
+from app.services.slack_signature import SlackSignatureError, SlackSignatureVerifier
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/slack", tags=["slack"])
@@ -78,8 +86,9 @@ def verify_slack_request(
         )
 
 
-async def process_lunch_command(command: SlackCommand) -> None:
+async def process_lunch_command(command: SlackCommand, settings: Settings) -> None:
     """Background seam for recommendation workflow owned by downstream service lanes."""
+    _ = settings
     logger.info(
         "Accepted Slack lunch command",
         extra={
@@ -95,10 +104,10 @@ async def process_lunch_command(command: SlackCommand) -> None:
 async def lunch_command(
     request: Request,
     background_tasks: BackgroundTasks,
+    settings: Annotated[Settings, Depends(get_settings)],
     x_slack_request_timestamp: Annotated[str | None, Header()] = None,
     x_slack_signature: Annotated[str | None, Header()] = None,
     x_slack_retry_num: Annotated[str | None, Header()] = None,
-    settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
     raw_body = await request.body()
     verify_slack_request(
@@ -109,20 +118,20 @@ async def lunch_command(
     )
     command = parse_slash_command(raw_body)
     fingerprint = fingerprint_command(command)
-    if x_slack_retry_num and fingerprint in _SEEN_REQUESTS:
+    if x_slack_retry_num or fingerprint in _SEEN_REQUESTS:
         return already_processing_ack()
 
     _SEEN_REQUESTS.add(fingerprint)
-    background_tasks.add_task(process_lunch_command, command)
+    background_tasks.add_task(process_lunch_command, command, settings)
     return command_ack()
 
 
 @router.post("/interactions")
 async def slack_interactions(
     request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
     x_slack_request_timestamp: Annotated[str | None, Header()] = None,
     x_slack_signature: Annotated[str | None, Header()] = None,
-    settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
     raw_body = await request.body()
     verify_slack_request(

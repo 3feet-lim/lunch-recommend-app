@@ -15,5 +15,4 @@ lunch_recommend_backend.egg-info/SOURCES.txt
 lunch_recommend_backend.egg-info/dependency_links.txt
 lunch_recommend_backend.egg-info/requires.txt
 lunch_recommend_backend.egg-info/top_level.txt
-tests/test_slack_routes.py
-tests/test_slack_signature.py
+tests/test_slack_protocol.py

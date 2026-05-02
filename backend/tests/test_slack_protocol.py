@@ -4,6 +4,7 @@ import time
 from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from app.config import get_settings
 from app.main import create_app
@@ -12,7 +13,11 @@ from app.routers import slack
 SECRET = "test-secret"
 
 
-def signed_headers(body: bytes, secret: str = SECRET, timestamp: int | None = None) -> dict[str, str]:
+def signed_headers(
+    body: bytes,
+    secret: str = SECRET,
+    timestamp: int | None = None,
+) -> dict[str, str]:
     ts = str(timestamp or int(time.time()))
     base = b"v0:" + ts.encode() + b":" + body
     signature = "v0=" + hmac.new(secret.encode(), base, hashlib.sha256).hexdigest()
@@ -40,20 +45,22 @@ def command_body(text: str = "강남역 4명 팀점심") -> bytes:
 def client() -> TestClient:
     get_settings.cache_clear()
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: get_settings().model_copy(
-        update={"slack_signing_secret": SECRET}
+    from app.config import Settings
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        slack_signing_secret=SECRET,
+        environment="test",
     )
     return TestClient(app)
 
 
-def test_health_endpoint_returns_healthy_status():
+def test_health_endpoint_returns_healthy_status() -> None:
     response = client().get("/health")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
+    assert response.json()["status"] == "ok"
 
 
-def test_lunch_command_accepts_valid_slack_signature():
+def test_lunch_command_accepts_valid_slack_signature() -> None:
     body = command_body()
     response = client().post("/slack/commands/lunch", content=body, headers=signed_headers(body))
 
@@ -61,7 +68,7 @@ def test_lunch_command_accepts_valid_slack_signature():
     assert "확인" in response.json()["text"]
 
 
-def test_lunch_command_rejects_invalid_slack_signature():
+def test_lunch_command_rejects_invalid_slack_signature() -> None:
     body = command_body()
     headers = signed_headers(body) | {"X-Slack-Signature": "v0=invalid"}
 
@@ -70,7 +77,7 @@ def test_lunch_command_rejects_invalid_slack_signature():
     assert response.status_code == 401
 
 
-def test_lunch_command_rejects_stale_slack_timestamp():
+def test_lunch_command_rejects_stale_slack_timestamp() -> None:
     body = command_body()
     stale_timestamp = int(time.time()) - 600
 
@@ -83,7 +90,7 @@ def test_lunch_command_rejects_stale_slack_timestamp():
     assert response.status_code == 401
 
 
-def test_slack_signature_uses_exact_raw_body():
+def test_slack_signature_uses_exact_raw_body() -> None:
     body = command_body("강남역 4명")
     tampered_body = command_body("강남역 5명")
 
@@ -96,10 +103,12 @@ def test_slack_signature_uses_exact_raw_body():
     assert response.status_code == 401
 
 
-def test_lunch_command_ack_is_returned_before_background_work(monkeypatch):
+def test_lunch_command_ack_is_returned_before_background_work(
+    monkeypatch: MonkeyPatch,
+) -> None:
     called = False
 
-    async def fail_if_executed_before_ack(command):
+    async def fail_if_executed_before_ack(command: slack.SlackCommand, settings) -> None:
         nonlocal called
         called = True
 
@@ -113,7 +122,7 @@ def test_lunch_command_ack_is_returned_before_background_work(monkeypatch):
     assert called is True
 
 
-def test_retry_duplicate_returns_already_processing_ack():
+def test_retry_duplicate_returns_already_processing_ack() -> None:
     slack._SEEN_REQUESTS.clear()
     body = command_body()
     first = client().post("/slack/commands/lunch", content=body, headers=signed_headers(body))
@@ -123,10 +132,10 @@ def test_retry_duplicate_returns_already_processing_ack():
 
     assert first.status_code == 200
     assert second.status_code == 200
-    assert "이미" in second.json()["text"]
+    assert "처리 중" in second.json()["text"]
 
 
-def test_interactions_endpoint_verifies_signature():
+def test_interactions_endpoint_verifies_signature() -> None:
     body = urlencode({"payload": '{"type":"block_actions"}'}).encode()
     response = client().post("/slack/interactions", content=body, headers=signed_headers(body))
 
