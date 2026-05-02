@@ -11,6 +11,14 @@ from app.models.domain import RestaurantCandidate, WeatherCategory, WeatherConte
 
 
 @dataclass(frozen=True, slots=True)
+class RecommendationRequestContext:
+    party_size: int | None = None
+    companion_context: str | None = None
+    weather: WeatherContext | WeatherCategory | str | None = None
+    is_weekend: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class Recommendation:
     name: str
     category: str
@@ -28,6 +36,7 @@ class RecommendationEngine:
     def recommend(
         self,
         restaurants: Sequence[RestaurantCandidate | dict[str, Any]],
+        request_context: RecommendationRequestContext | None = None,
         *,
         weather: WeatherContext | WeatherCategory | str | None = None,
         weekday: str | bool | None = None,
@@ -36,6 +45,12 @@ class RecommendationEngine:
         now: datetime | None = None,
         limit: int = 3,
     ) -> list[Recommendation]:
+        if request_context is not None:
+            weather = request_context.weather
+            weekday = not request_context.is_weekend
+            party_size = request_context.party_size
+            context = request_context.companion_context
+
         weather_category = _weather_category(weather)
         is_weekday = _is_weekday(weekday, now)
         scored = [

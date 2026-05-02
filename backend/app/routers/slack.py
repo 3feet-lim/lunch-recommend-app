@@ -1,4 +1,5 @@
 import hashlib
+import inspect
 import logging
 from dataclasses import dataclass
 from typing import Annotated
@@ -16,6 +17,7 @@ from app.services.slack_signature import SlackSignatureVerifier
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/slack", tags=["slack"])
+SETTINGS_DEPENDENCY = Depends(get_settings)
 
 _SEEN_REQUESTS: set[str] = set()
 
@@ -67,19 +69,18 @@ def verify_slack_request(
     signature: str | None,
     settings: Settings,
 ) -> None:
-    try:
-        SlackSignatureVerifier(settings.slack_signing_secret).verify(
-            raw_body=raw_body, timestamp=timestamp, signature=signature
-        )
-    except SlackSignatureError as exc:
-        logger.warning("Rejected Slack request: %s", exc)
+    result = SlackSignatureVerifier(settings.slack_signing_secret).verify(
+        raw_body=raw_body, timestamp=timestamp, signature=signature
+    )
+    if not result.ok:
+        logger.warning("Rejected Slack request: %s", result.reason)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid_slack_signature",
-        ) from exc
+        )
 
 
-async def process_lunch_command(command: SlackCommand) -> None:
+async def process_lunch_command(command: SlackCommand, settings: Settings | None = None) -> None:
     """Background seam for recommendation workflow owned by downstream service lanes."""
     logger.info(
         "Accepted Slack lunch command",
@@ -92,6 +93,16 @@ async def process_lunch_command(command: SlackCommand) -> None:
     )
 
 
+async def invoke_process_lunch_command(command: SlackCommand, settings: Settings) -> None:
+    """Invoke the processing seam while preserving older one-arg test doubles."""
+
+    parameters = inspect.signature(process_lunch_command).parameters
+    if len(parameters) >= 2:
+        await process_lunch_command(command, settings)
+    else:
+        await process_lunch_command(command)
+
+
 @router.post("/commands/lunch")
 async def lunch_command(
     request: Request,
@@ -99,7 +110,7 @@ async def lunch_command(
     x_slack_request_timestamp: Annotated[str | None, Header()] = None,
     x_slack_signature: Annotated[str | None, Header()] = None,
     x_slack_retry_num: Annotated[str | None, Header()] = None,
-    settings: Settings = Depends(get_settings),
+    settings: Settings = SETTINGS_DEPENDENCY,
 ) -> dict[str, str]:
     raw_body = await request.body()
     verify_slack_request(
@@ -114,7 +125,7 @@ async def lunch_command(
         return already_processing_ack()
 
     _SEEN_REQUESTS.add(fingerprint)
-    background_tasks.add_task(process_lunch_command, command)
+    background_tasks.add_task(invoke_process_lunch_command, command, settings)
     return command_ack()
 
 
@@ -123,7 +134,7 @@ async def slack_interactions(
     request: Request,
     x_slack_request_timestamp: Annotated[str | None, Header()] = None,
     x_slack_signature: Annotated[str | None, Header()] = None,
-    settings: Settings = Depends(get_settings),
+    settings: Settings = SETTINGS_DEPENDENCY,
 ) -> dict[str, str]:
     raw_body = await request.body()
     verify_slack_request(

@@ -36,7 +36,11 @@ class NaverGeocodingClient:
         base_url: str = DEFAULT_BASE_URL,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.client_id = client_id if client_id is not None else (os.getenv("NAVER_GEOCODING_CLIENT_ID") or os.getenv("NAVER_CLIENT_ID"))
+        self.client_id = (
+            client_id
+            if client_id is not None
+            else (os.getenv("NAVER_GEOCODING_CLIENT_ID") or os.getenv("NAVER_CLIENT_ID"))
+        )
         self.client_secret = (
             client_secret
             if client_secret is not None
@@ -90,7 +94,12 @@ class NaverGeocodingClient:
         url = f"{self.base_url}{path}"
         try:
             if self._client is not None:
-                return await self._client.get(url, params=params, headers=headers, timeout=self.timeout_seconds)
+                return await self._client.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                )
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 return await client.get(url, params=params, headers=headers)
         except httpx.TimeoutException as exc:

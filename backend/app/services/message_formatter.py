@@ -89,7 +89,7 @@ def _format_recommendation_line(index: int, item: Recommendation | dict[str, Any
         details.append(address)
     if map_url:
         details.append(map_url)
-    return f"{index}. *{name}* — {' · '.join(details)}\n   이유: {reason}"
+    return f"{index}. {name} — {' · '.join(details)}\n   이유: {reason}"
 
 
 def _field(item: Recommendation | dict[str, Any], *names: str) -> str | None:
@@ -117,3 +117,33 @@ def format_missing_region_prompt() -> dict[str, str]:
 
 def format_missing_party_size_prompt(region: str | None = None) -> dict[str, str]:
     return MessageFormatter().missing_party_size_prompt(region)
+
+
+def format_no_restaurants(
+    strict_radius_meters: int = 150,
+    region: str = "요청 지역",
+) -> dict[str, str]:
+    return MessageFormatter().format_no_results(
+        region=region, strict_radius_meters=strict_radius_meters
+    )
+
+
+def format_recommendations(
+    recommendations: Sequence[Recommendation | dict[str, Any]],
+    context: Any | None = None,
+    *,
+    region: str = "요청 지역",
+    party_size: int | None = None,
+    weather: WeatherContext | None = None,
+    strict_radius_meters: int = 150,
+) -> dict[str, str]:
+    if context is not None:
+        party_size = party_size if party_size is not None else getattr(context, "party_size", None)
+        weather = weather if weather is not None else getattr(context, "weather", None)
+    return MessageFormatter().format_recommendations(
+        recommendations,
+        region=region,
+        party_size=party_size or 1,
+        weather=weather if isinstance(weather, WeatherContext) else None,
+        strict_radius_meters=strict_radius_meters,
+    )

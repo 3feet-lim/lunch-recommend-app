@@ -9,7 +9,11 @@ from typing import Any
 import httpx
 
 from app.models.domain import Coordinates, RestaurantCandidate
-from app.services.external_api_errors import MissingCredentialError, UpstreamServiceError, UpstreamTimeoutError
+from app.services.external_api_errors import (
+    MissingCredentialError,
+    UpstreamServiceError,
+    UpstreamTimeoutError,
+)
 
 
 class KakaoLocalClient:
@@ -27,7 +31,9 @@ class KakaoLocalClient:
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self.api_key = api_key if api_key is not None else os.getenv("KAKAO_REST_API_KEY")
-        self.radius_meters = radius_meters or int(os.getenv("RESTAURANT_SEARCH_RADIUS_METERS", "150"))
+        self.radius_meters = radius_meters or int(
+            os.getenv("RESTAURANT_SEARCH_RADIUS_METERS", "150")
+        )
         self.timeout_seconds = timeout_seconds or float(os.getenv("UPSTREAM_TIMEOUT_SECONDS", "3"))
         self.base_url = base_url.rstrip("/")
         self._client = http_client
@@ -59,7 +65,11 @@ class KakaoLocalClient:
         documents = payload.get("documents", [])
         if not isinstance(documents, list):
             raise UpstreamServiceError("Kakao Local response documents were malformed")
-        return [_candidate_from_document(document) for document in documents if isinstance(document, dict)]
+        return [
+            _candidate_from_document(document)
+            for document in documents
+            if isinstance(document, dict)
+        ]
 
     async def _get(
         self,
@@ -71,7 +81,12 @@ class KakaoLocalClient:
         url = f"{self.base_url}{path}"
         try:
             if self._client is not None:
-                return await self._client.get(url, params=params, headers=headers, timeout=self.timeout_seconds)
+                return await self._client.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                )
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 return await client.get(url, params=params, headers=headers)
         except httpx.TimeoutException as exc:
@@ -85,7 +100,9 @@ def _candidate_from_document(document: dict[str, Any]) -> RestaurantCandidate:
         provider_id = str(document["id"])
         name = str(document["place_name"]).strip()
     except KeyError as exc:
-        raise UpstreamServiceError("Kakao Local restaurant document is missing required fields") from exc
+        raise UpstreamServiceError(
+            "Kakao Local restaurant document is missing required fields"
+        ) from exc
     if not provider_id or not name:
         raise UpstreamServiceError("Kakao Local restaurant document has empty required fields")
 

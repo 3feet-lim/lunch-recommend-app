@@ -44,12 +44,21 @@ class OpenWeatherClient:
                 },
             )
         except httpx.TimeoutException:
-            return WeatherContext(category=WeatherCategory.UNAVAILABLE, unavailable_reason="timeout")
+            return WeatherContext(
+                category=WeatherCategory.UNAVAILABLE,
+                unavailable_reason="timeout",
+            )
         except httpx.HTTPError:
-            return WeatherContext(category=WeatherCategory.UNAVAILABLE, unavailable_reason="transport_error")
+            return WeatherContext(
+                category=WeatherCategory.UNAVAILABLE,
+                unavailable_reason="transport_error",
+            )
 
         if response.status_code >= 400:
-            return WeatherContext(category=WeatherCategory.UNAVAILABLE, unavailable_reason="provider_error")
+            return WeatherContext(
+                category=WeatherCategory.UNAVAILABLE,
+                unavailable_reason="provider_error",
+            )
         payload = _json_or_error(response)
         return _weather_from_payload(payload)
 
@@ -67,7 +76,10 @@ def _weather_from_payload(payload: dict[str, Any]) -> WeatherContext:
     main = str(first_weather.get("main", "")).lower() if isinstance(first_weather, dict) else ""
     description = first_weather.get("description") if isinstance(first_weather, dict) else None
     provider_code = first_weather.get("id") if isinstance(first_weather, dict) else None
-    temperature = _optional_float(payload.get("main", {}).get("temp") if isinstance(payload.get("main"), dict) else None)
+    main_payload = payload.get("main")
+    temperature = _optional_float(
+        main_payload.get("temp") if isinstance(main_payload, dict) else None
+    )
 
     category = WeatherCategory.CLOUDY
     if main in {"thunderstorm", "drizzle", "rain"}:
@@ -80,7 +92,18 @@ def _weather_from_payload(payload: dict[str, Any]) -> WeatherContext:
         category = WeatherCategory.COLD
     elif main == "clear":
         category = WeatherCategory.CLEAR
-    elif main in {"clouds", "mist", "smoke", "haze", "dust", "fog", "sand", "ash", "squall", "tornado"}:
+    elif main in {
+        "clouds",
+        "mist",
+        "smoke",
+        "haze",
+        "dust",
+        "fog",
+        "sand",
+        "ash",
+        "squall",
+        "tornado",
+    }:
         category = WeatherCategory.CLOUDY
 
     return WeatherContext(

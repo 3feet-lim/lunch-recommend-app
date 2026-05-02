@@ -12,17 +12,28 @@ PendingQuestion = Literal["region", "party_size", "context", "none"]
 
 
 @dataclass(frozen=True, slots=True)
+class StateKey:
+    team_id: str
+    channel_id: str
+    user_id: str
+
+    @property
+    def value(self) -> str:
+        return build_conversation_key(self.team_id, self.channel_id, self.user_id)
+
+
+@dataclass(frozen=True, slots=True)
 class ConversationState:
-    key: str
     pending_question: PendingQuestion
-    region: str | None
-    party_size: int | None
-    companion_context: str | None
-    response_url: str | None
-    created_at: datetime
-    updated_at: datetime
     expires_at: datetime
-    last_request_fingerprint: str | None
+    key: str = ""
+    region: str | None = None
+    party_size: int | None = None
+    companion_context: str | None = None
+    response_url: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    last_request_fingerprint: str | None = None
 
     @property
     def is_expired(self) -> bool:
@@ -48,7 +59,8 @@ class SQLiteConversationStateStore:
         self.ttl = timedelta(minutes=ttl_minutes)
         self._ensure_schema()
 
-    def get(self, key: str) -> ConversationState | None:
+    def get(self, key: str | StateKey) -> ConversationState | None:
+        key_value = _key_value(key)
         self.cleanup_expired()
         with self._connect() as connection:
             row = connection.execute(
@@ -57,7 +69,7 @@ class SQLiteConversationStateStore:
                        response_url, created_at, updated_at, expires_at, last_request_fingerprint
                 FROM conversation_state WHERE key = ?
                 """,
-                (key,),
+                (key_value,),
             ).fetchone()
         if row is None:
             return None
@@ -66,8 +78,9 @@ class SQLiteConversationStateStore:
 
     def upsert(
         self,
+        key: str | StateKey,
+        state: ConversationState | None = None,
         *,
-        key: str,
         pending_question: PendingQuestion = "none",
         region: str | None = None,
         party_size: int | None = None,
@@ -75,10 +88,18 @@ class SQLiteConversationStateStore:
         response_url: str | None = None,
         last_request_fingerprint: str | None = None,
     ) -> ConversationState:
+        key_value = _key_value(key)
+        if state is not None:
+            pending_question = state.pending_question
+            region = state.region
+            party_size = state.party_size
+            companion_context = state.companion_context
+            response_url = state.response_url
+            last_request_fingerprint = state.last_request_fingerprint
         now = _utcnow()
-        existing = self.get(key)
-        created_at = existing.created_at if existing else now
-        expires_at = now + self.ttl
+        existing = self.get(key_value)
+        created_at = existing.created_at if existing and existing.created_at else now
+        expires_at = state.expires_at if state is not None else now + self.ttl
         with self._connect() as connection:
             connection.execute(
                 """
@@ -97,7 +118,7 @@ class SQLiteConversationStateStore:
                     last_request_fingerprint = excluded.last_request_fingerprint
                 """,
                 (
-                    key,
+                    key_value,
                     pending_question,
                     region,
                     party_size,
@@ -109,12 +130,23 @@ class SQLiteConversationStateStore:
                     last_request_fingerprint,
                 ),
             )
-        state = self.get(key)
-        if state is None:  # pragma: no cover - defensive guard for SQLite failures
-            raise RuntimeError("conversation state write did not persist")
-        return state
+        persisted = self.get(key_value)
+        if persisted is not None:
+            return persisted
+        return ConversationState(
+            key=key_value,
+            pending_question=pending_question,
+            region=region,
+            party_size=party_size,
+            companion_context=companion_context,
+            response_url=response_url,
+            created_at=created_at,
+            updated_at=now,
+            expires_at=expires_at,
+            last_request_fingerprint=last_request_fingerprint,
+        )
 
-    def set_fingerprint(self, key: str, fingerprint: str) -> ConversationState:
+    def set_fingerprint(self, key: str | StateKey, fingerprint: str) -> ConversationState:
         existing = self.get(key)
         return self.upsert(
             key=key,
@@ -126,13 +158,13 @@ class SQLiteConversationStateStore:
             last_request_fingerprint=fingerprint,
         )
 
-    def is_duplicate(self, key: str, fingerprint: str) -> bool:
+    def is_duplicate(self, key: str | StateKey, fingerprint: str) -> bool:
         existing = self.get(key)
         return existing is not None and existing.last_request_fingerprint == fingerprint
 
-    def delete(self, key: str) -> None:
+    def delete(self, key: str | StateKey) -> None:
         with self._connect() as connection:
-            connection.execute("DELETE FROM conversation_state WHERE key = ?", (key,))
+            connection.execute("DELETE FROM conversation_state WHERE key = ?", (_key_value(key),))
 
     def cleanup_expired(self) -> int:
         now = _format_dt(_utcnow())
@@ -184,6 +216,10 @@ def _state_from_row(row: sqlite3.Row) -> ConversationState:
         expires_at=_parse_dt(str(row["expires_at"])),
         last_request_fingerprint=row["last_request_fingerprint"],
     )
+
+
+def _key_value(key: str | StateKey) -> str:
+    return key.value if isinstance(key, StateKey) else key
 
 
 def _pending_question(value: str) -> PendingQuestion:
